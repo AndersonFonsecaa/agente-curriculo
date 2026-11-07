@@ -1,12 +1,8 @@
 /**
- * Agente de Currículo - Versão Robusta
- * Funciona 100% no navegador, sem servidor
- * Suporte a: link de vaga, colar texto, arquivo TXT/PDF/DOCX
+ * Agente de Currículo - Versão Avançada com IA
+ * Funciona com backend (server-ia.js) + IA (OpenAI/Anthropic/Google)
  */
 
-// ============================================================
-// 1. REFERÊNCIAS DOS ELEMENTOS
-// ============================================================
 const $ = (id) => document.getElementById(id);
 
 const form       = $('formAnalise');
@@ -23,16 +19,13 @@ const inputArqVaga    = $('arquivoVaga');
 const inputArqCurric  = $('arquivoCurriculo');
 const hintUrl         = $('urlHint');
 
-// ============================================================
-// 2. ESTADO
-// ============================================================
 let estado = {
   textoCurriculo: '',
   textoVaga:    ''
 };
 
 // ============================================================
-// 3. UTILITÁRIOS
+// UTILITÁRIOS
 // ============================================================
 function log(m) { console.log('[Agente] ' + m); }
 
@@ -58,7 +51,7 @@ function esc(t) {
     .replace(/'/g, '&#039;');
 }
 
-// Atualiza estado.textoVaga sempre que o usuário digita/cola no textarea
+// Atualiza estado.textoVaga quando o usuário digita
 if (inputTextoVaga) {
   inputTextoVaga.addEventListener('input', () => {
     estado.textoVaga = inputTextoVaga.value.trim();
@@ -66,7 +59,7 @@ if (inputTextoVaga) {
 }
 
 // ============================================================
-// 4. LER PÁGINA DA VAGA VIA LINK (r.jina.ai)
+// LER PÁGINA DA VAGA VIA LINK (r.jina.ai)
 // ============================================================
 if (btnLerLink) {
   btnLerLink.addEventListener('click', async () => {
@@ -102,7 +95,7 @@ if (btnLerLink) {
 }
 
 // ============================================================
-// 5. LER ARQUIVOS (TXT / PDF / DOCX)
+// LER ARQUIVOS (TXT / PDF / DOCX)
 // ============================================================
 function lerTexto(arquivo) {
   return new Promise((res, rej) => {
@@ -123,9 +116,7 @@ function lerBuffer(arquivo) {
 }
 
 async function lerPDF(buf) {
-  if (!bibliotecasCarregadas || typeof pdfjsLib === 'undefined') {
-    throw new Error('Biblioteca pdf.js não carregou. Verifique sua conexão com a internet e tente novamente, ou use um arquivo .TXT.');
-  }
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF precisa de internet. Use .TXT.');
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   let t = '';
@@ -138,9 +129,7 @@ async function lerPDF(buf) {
 }
 
 async function lerDOCX(buf) {
-  if (!bibliotecasCarregadas || typeof mammoth === 'undefined') {
-    throw new Error('Biblioteca mammoth.js não carregou. Verifique sua conexão com a internet e tente novamente, ou use um arquivo .TXT.');
-  }
+  if (typeof mammoth === 'undefined') throw new Error('DOCX precisa de internet. Use .TXT.');
   const r = await mammoth.extractRawText({ arrayBuffer: buf });
   return r.value;
 }
@@ -159,71 +148,19 @@ let bibliotecasCarregadas = false;
 let bibliotecasCarregando = false;
 
 function carregarExternas() {
-  // Já carregadas
   if (bibliotecasCarregadas) return Promise.resolve();
-
-  // Já está carregando
   if (bibliotecasCarregando) {
     return new Promise((res) => {
-      const verificar = setInterval(() => {
-        if (bibliotecasCarregadas) {
-          clearInterval(verificar);
-          res();
-        }
-      }, 200);
-      setTimeout(() => { clearInterval(verificar); res(); }, 30000);
+      const v = setInterval(() => { if (bibliotecasCarregadas) { clearInterval(v); res(); } }, 200);
+      setTimeout(() => { clearInterval(v); res(); }, 30000);
     });
   }
-
   bibliotecasCarregando = true;
-
-  return new Promise((res, rej) => {
-    const scripts = [];
-    const tempoLimite = 30000;
-
-    if (typeof pdfjsLib === 'undefined') {
-      scripts.push(new Promise((resolve, reject) => {
-        const x = document.createElement('script');
-        x.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        x.onload = () => {
-          // Configura o worker do pdf.js
-          if (typeof pdfjsLib !== 'undefined') {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-          }
-          resolve();
-        };
-        x.onerror = () => reject(new Error('Falha ao baixar pdf.js'));
-        x.onabort = () => reject(new Error('Download do pdf.js interrompido'));
-        document.head.appendChild(x);
-        setTimeout(() => reject(new Error('Timeout baixando pdf.js')), tempoLimite);
-      }));
-    }
-
-    if (typeof mammoth === 'undefined') {
-      scripts.push(new Promise((resolve, reject) => {
-        const x = document.createElement('script');
-        x.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
-        x.onload = resolve;
-        x.onerror = () => reject(new Error('Falha ao baixar mammoth.js'));
-        x.onabort = () => reject(new Error('Download do mammoth.js interrompido'));
-        document.head.appendChild(x);
-        setTimeout(() => reject(new Error('Timeout baixando mammoth.js')), tempoLimite);
-      }));
-    }
-
-    Promise.all(scripts)
-      .then(() => {
-        bibliotecasCarregadas = true;
-        bibliotecasCarregando = false;
-        log('Bibliotecas externas carregadas com sucesso');
-        res();
-      })
-      .catch((err) => {
-        bibliotecasCarregando = false;
-        log('Aviso: Bibliotecas externas não carregadas: ' + err.message);
-        // Não rejeita - permite continuar com TXT apenas
-        res();
-      });
+  return new Promise((res) => {
+    const s = [];
+    if (typeof pdfjsLib === 'undefined') s.push(new Promise((r) => { const x = document.createElement('script'); x.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'; x.onload = () => { if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; r(); }; x.onerror = r; document.head.appendChild(x); }));
+    if (typeof mammoth === 'undefined') s.push(new Promise((r) => { const x = document.createElement('script'); x.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'; x.onload = r; x.onerror = r; document.head.appendChild(x); }));
+    Promise.all(s).then(() => { bibliotecasCarregadas = true; bibliotecasCarregando = false; res(); }).catch(() => { bibliotecasCarregando = false; res(); });
   });
 }
 
@@ -269,297 +206,7 @@ if (inputArqVaga) {
 }
 
 // ============================================================
-// 6. ANÁLISE DE MATCH
-// ============================================================
-function palavras(t) {
-  if (!t) return [];
-  return t.toLowerCase().replace(/[^\w\sáàâãéèêíìîóòôõúùûç]/g, ' ').split(/\s+/).filter(p => p.length >= 4);
-}
-
-function calcularMatch(vaga, curriculo) {
-  const pv = [...new Set(palavras(vaga))];
-  const pc = new Set(palavras(curriculo));
-  const enc = pv.filter(p => pc.has(p));
-  const falt = pv.filter(p => !pc.has(p));
-  const score = pv.length ? Math.min(98, Math.max(20, Math.round(enc.length / pv.length * 100))) : 0;
-  return { score, enc, falt: falt.slice(0, 10), total: pv.length };
-}
-
-function analisar(match, vagaTexto) {
-  const fortes = [], lac = [], rec = [];
-  if (match.enc.length > 0) {
-    fortes.push(`${match.enc.length} de ${match.total} palavras-chave da vaga encontradas no seu currículo`);
-    fortes.push('Habilidades principais alinhadas aos requisitos');
-  } else { fortes.push('Currículo carregado'); }
-  if (match.falt.length > 0) lac.push(`Faltando: ${match.falt.join(', ')}`);
-  lac.push('Considere adicionar mais termos técnicos da vaga');
-  rec.push('Inclua palavras-chave da vaga nas suas experiências');
-  rec.push('Quantifique resultados com números e porcentagens');
-  rec.push('Destaque projetos parecidos com a vaga no topo');
-  rec.push('Use o mesmo vocabulário da vaga para filtros ATS');
-  return { scoreMatch: match.score, analise: { pontosFortes: fortes, lacunas: lac, recomendacoes: rec } };
-}
-
-// ============================================================
-// 7. GERAR CURRÍCULO
-// ============================================================
-function extrairNome(t) {
-  const l = t.split('\n').map(x => x.trim()).filter(x => x.length > 0);
-  return l[0] ? l[0].substring(0, 60) : 'Seu Nome';
-}
-function emailCurriculo(t) { const m = t.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/); return m ? m[0] : 'seu.email@exemplo.com'; }
-function telefoneCurriculo(t) { const m = t.match(/\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4}/); return m ? m[0] : '(00) 0000-0000'; }
-
-function habilidadesCurriculo(curriculoTexto, palavrasVaga) {
-  const tecnicas = ['javascript','python','java','sql','excel','power bi','aws','azure','docker','kubernetes','git','html','css','react','node.js','typescript','c#','php','ruby','go','linux','windows','scrum','agile','jira','segurança','cibersegurança','seguranca','firewall','vpn','siem','soc','lgpd','gdpr','criptografia','mfa','incidente','resposta a incidentes','analise de vulnerabilidade','analise de riscos','redes','banco de dados','front-end','back-end','full stack','devops','cloud','microsoft office','word','powerpoint','outlook','freshdesk','troubleshooting','itil','sql','windows','hardware','software','notebooks','impressoras','periféricos','dispositivos móveis','redes de computadores','documentação de soluções','atendimento remoto','atendimento presencial','sistemas de tickets','gestão de incidentes','gestão de requisições'];
-  const comuns = ['comunicação','trabalho em equipe','liderança','resolução de problemas','gestão de tempo','adaptabilidade','pensamento crítico','organização','criatividade','trabalho sob pressão','atendimento ao cliente','negociação'];
-  const tl = curriculoTexto.toLowerCase();
-  const ach = [];
-  palavrasVaga.forEach(p => { if (tecnicas.includes(p) && tl.includes(p)) { const c = p.charAt(0).toUpperCase() + p.slice(1); if (!ach.includes(c)) ach.push(c); } });
-  comuns.forEach(c => { if (tl.includes(c) && !ach.includes(c)) ach.push(c.charAt(0).toUpperCase() + c.slice(1)); });
-  const palavrasMaiusculas = curriculoTexto.match(/\b[A-Z][a-zA-Z]+\b/g) || [];
-  palavrasMaiusculas.forEach(p => {
-    if (p.length > 2 && p.length < 25 && !ach.includes(p) && p !== 'Seu' && p !== 'Empresa' && p !== 'Instituição' && p !== 'Faculdade' && p !== 'Universidade' && p !== 'Tecnologia' && p !== 'Informática' && p !== 'Informação') {
-      ach.push(p);
-    }
-  });
-  return ach.slice(0, 15);
-}
-
-function extrairSecoes(texto) {
-  const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const secoes = [];
-  let atual = null;
-  const palavrasSecao = ['resumo profissional','competências técnicas','competencias tecnicas','experiencia profissional','experiência profissional','formacao academica','formação acadêmica','cursos e certificacoes','cursos e certificações'];
-  for (let i = 0; i < linhas.length; i++) {
-    const linha = linhas[i];
-    const linhaLower = linha.toLowerCase();
-    const ehSecao = palavrasSecao.some(ps => linhaLower === ps || linhaLower.startsWith(ps));
-    if (ehSecao && linha.length < 60) {
-      if (atual) secoes.push(atual);
-      atual = { titulo: linha, conteudo: [] };
-    } else if (atual) {
-      atual.conteudo.push(linha);
-    }
-  }
-  if (atual) secoes.push(atual);
-  return secoes;
-}
-
-function limparBalao(linha) {
-  return linha.replace(/^[•\-\*]\s*/, '').trim();
-}
-
-function limparBalao(linha) {
-  return linha.replace(/^[•\-\*]\s*/, '').trim();
-}
-
-function experienciasCurriculo(t) {
-  const secoes = extrairSecoes(t);
-  const secaoExp = secoes.find(s => /experi/i.test(s.titulo));
-  let blocos = secaoExp ? secaoExp.conteudo : [];
-  if (blocos.length === 0) {
-    blocos = t.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  }
-
-  const exp = [];
-  let atual = null;
-  const data = /\b(19|20)\d{2}\b/;
-
-  for (const linha of blocos) {
-    const limpa = limparBalao(linha);
-
-    if (limpa.length < 2) continue;
-
-    // 1. Linha com '—' ou '|' = Empresa + Cargo
-    if (limpa.includes('—') || limpa.includes('|')) {
-      // Salva experiência anterior se existir
-      if (atual) { exp.push(atual); atual = null; }
-
-      const partes = limpa.split(/[—|]/).map(p => p.trim()).filter(p => p.length > 0);
-      if (partes.length >= 2) {
-        atual = { empresa: partes[0], cargo: partes[1], periodo: '', descricao: '', realizacoes: [] };
-      } else {
-        atual = { empresa: partes[0] || '', cargo: '', periodo: '', descricao: '', realizacoes: [] };
-      }
-      continue;
-    }
-
-    // 2. Linha com padrão de data (Set/2024, Dez/2020, etc.) = Período
-    if (data.test(limpa) && limpa.length < 60) {
-      if (atual) {
-        if (!atual.periodo) atual.periodo = limpa;
-      }
-      continue;
-    }
-
-    // 3. Linha com bullet point ou longa = realização/descrição
-    if (atual && limpa.length > 5) {
-      const semBalao = limparBalao(linha);
-      if (linha.startsWith('•') || linha.startsWith('-') || linha.startsWith('*')) {
-        if (!atual.realizacoes) atual.realizacoes = [];
-        atual.realizacoes.push(semBalao);
-      } else {
-        atual.descricao = atual.descricao ? atual.descricao + ' | ' + semBalao : semBalao;
-      }
-      continue;
-    }
-
-    // 4. Linha curta sem data, sem atual = empresa isolada
-    if (!atual && limpa.length < 80) {
-      atual = { empresa: limpa, cargo: '', periodo: '', descricao: '', realizacoes: [] };
-      continue;
-    }
-  }
-
-  // Última experiência pendente
-  if (atual) exp.push(atual);
-
-  // Fallback se não extraiu nada
-  if (exp.length === 0) {
-    const linhas = t.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    for (let i = 0; i < linhas.length - 1; i++) {
-      const l1 = linhas[i];
-      const l2 = linhas[i + 1];
-      if (l1.length > 2 && l1.length < 60 && l2.length > 2 && l2.length < 60 && !data.test(l1) && !data.test(l2)) {
-        exp.push({ empresa: l1, cargo: l2, periodo: 'Período não informado', descricao: 'Experiência profissional.', realizacoes: [] });
-        i++;
-        if (exp.length >= 3) break;
-      }
-    }
-  }
-
-  if (exp.length === 0) {
-    exp.push({ empresa: 'Empresa Anterior', cargo: 'Seu Último Cargo', periodo: 'Período não informado', descricao: 'Responsável por atividades da área.', realizacoes: ['Entrega de projetos', 'Colaboração em equipe'] });
-  }
-  return exp.slice(0, 4);
-}
-
-function educacaoCurriculo(t) {
-  const secoes = extrairSecoes(t);
-  const secaoEdu = secoes.find(s => /educ|formacao|form[aã]ao/i.test(s.titulo));
-  let blocos = secaoEdu ? secaoEdu.conteudo : [];
-  if (blocos.length === 0) {
-    blocos = t.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  }
-
-  const edu = [];
-  const curso = /(bacharel|licenciatura|tecn[oô]logo|mestrado|doutorado|gradua[cç][aã]o|t[cé]cnico|superior|curso|universidade|faculdade|instituto|escola)/i;
-  const data = /\b(19|20)\d{2}\b/;
-
-  for (let i = 0; i < blocos.length; i++) {
-    const linha = blocos[i].trim();
-
-    // Linha com '—' = Curso — Instituição
-    if (linha.includes('—') && curso.test(linha) && linha.length < 120) {
-      const partes = linha.split('—').map(p => p.trim()).filter(p => p.length > 0);
-      const cursoNome = partes[0] || '';
-      const instituicao = partes[1] || 'Instituição';
-      // Próxima linha pode ser a data
-      let periodo = 'Período não informado';
-      if (blocos[i + 1] && data.test(blocos[i + 1]) && blocos[i + 1].length < 60) {
-        periodo = blocos[i + 1];
-        i++; // pula a linha de data
-      }
-      edu.push({ curso: cursoNome, instituicao: instituicao, periodo: periodo });
-      if (edu.length >= 3) break;
-      continue;
-    }
-
-    // Linha simples com palavra de curso
-    if (curso.test(linha) && linha.length < 120) {
-      const instituicao = blocos[i + 1] ? blocos[i + 1] : 'Instituição';
-      let periodo = 'Período não informado';
-      // Pula se a próxima linha parece ser instituição (não data)
-      if (blocos[i + 1] && !data.test(blocos[i + 1]) && blocos[i + 1].length < 100) {
-        // próxima linha é instituição, data está depois
-        if (blocos[i + 2] && data.test(blocos[i + 2])) {
-          periodo = blocos[i + 2];
-          i += 2;
-        } else {
-          i += 1;
-        }
-      } else if (blocos[i + 1] && data.test(blocos[i + 1])) {
-        periodo = blocos[i + 1];
-        i += 1;
-      }
-      edu.push({ curso: linha, instituicao: instituicao, periodo: periodo });
-      if (edu.length >= 3) break;
-    }
-  }
-
-  if (edu.length === 0) {
-    for (let i = 0; i < blocos.length; i++) {
-      const linha = blocos[i].trim();
-      if ((/universidade|faculdade|instituto/i.test(linha)) && linha.length < 100) {
-        edu.push({ curso: 'Curso Superior', instituicao: linha, periodo: 'Período não informado' });
-        if (edu.length >= 2) break;
-      }
-    }
-  }
-
-  if (edu.length === 0) {
-    edu.push({ curso: 'Seu Curso', instituicao: 'Sua Instituição', periodo: 'Concluído' });
-  }
-  return edu;
-}
-
-function montarHTML(res, cur) {
-  const exp = cur.experiencias.map(e => `
-    <div class="experiencia">
-      <div class="exp-header"><span class="cargo">${esc(e.cargo)}</span><span class="periodo">${esc(e.periodo)}</span></div>
-      <div class="empresa">${esc(e.empresa)}</div>
-      <p>${esc(e.descricao)}</p>
-      ${e.realizacoes && e.realizacoes.length ? `<ul class="realizacoes">${e.realizacoes.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
-    </div>`).join('');
-  const edu = cur.educacao.map(e => `<div class="educacao"><div><strong>${esc(e.curso)}</strong> - ${esc(e.instituicao)}</div><div class="periodo">${esc(e.periodo)}</div></div>`).join('');
-  const skills = cur.habilidades.map(h => `<span class="skill">${esc(h)}</span>`).join('');
-  const cor = res.scoreMatch >= 70 ? '#10b981' : res.scoreMatch >= 50 ? '#f59e0b' : '#ef4444';
-  return `<div class="curriculo-gerado">
-    <header>
-      <h1>${esc(cur.nome)}</h1>
-      <div class="contato"><span>📧 ${esc(cur.contato.email)}</span><span>📞 ${esc(cur.contato.telefone)}</span><span>📍 ${esc(cur.contato.localizacao)}</span><span>🔗 ${esc(cur.contato.linkedin)}</span></div>
-      <div class="score-badge" style="background:${cor};color:white;padding:6px 16px;border-radius:20px;font-weight:bold;font-size:14px;display:inline-block;margin-top:10px;">Match com a vaga: ${res.scoreMatch}%</div>
-    </header>
-    <section><h2>Resumo Profissional</h2><div class="resumo">${esc(cur.resumoProfissional)}</div></section>
-    <section><h2>Experiência Profissional</h2>${exp}</section>
-    <section><h2>Educação</h2>${edu}</section>
-    <section><h2>Habilidades</h2><div class="habilidades">${skills}</div></section>
-  </div>`;
-}
-
-function gerarCurriculo(res, vagaTexto, curriculoTexto) {
-  const pv = palavras(vagaTexto);
-  const hab = habilidadesCurriculo(curriculoTexto, pv);
-  const exp = experienciasCurriculo(curriculoTexto);
-  const edu = educacaoCurriculo(curriculoTexto);
-  const top = hab.slice(0, 5).join(', ');
-
-  // Log de debug para ver o que foi extraído
-  log('=== EXTRAÇÃO DO CURRÍCULO ===');
-  log('Nome: ' + extrairNome(curriculoTexto));
-  log('Email: ' + emailCurriculo(curriculoTexto));
-  log('Telefone: ' + telefoneCurriculo(curriculoTexto));
-  log('Experiências: ' + JSON.stringify(exp));
-  log('Educação: ' + JSON.stringify(edu));
-  log('Habilidades: ' + JSON.stringify(hab));
-  log('=============================');
-
-  const primeiroCargo = (exp[0] && exp[0].cargo) ? exp[0].cargo : 'profissional';
-  const resumoProfissional = `Profissional focado em ${pv.slice(0, 3).join(' e ')} com experiência como ${primeiroCargo} e histórico de entregas alinhados aos requisitos da vaga. Habilidades em ${top}. Comprometido com qualidade, prazos e colaboração.`;
-
-  return {
-    nome: extrairNome(curriculoTexto),
-    contato: { email: emailCurriculo(curriculoTexto), telefone: telefoneCurriculo(curriculoTexto), localizacao: 'Sua Cidade, UF', linkedin: 'linkedin.com/in/seuperfil' },
-    resumoProfissional: resumoProfissional,
-    experiencias: exp,
-    educacao: edu,
-    habilidades: hab
-  };
-}
-
-// ============================================================
-// 8. BOTÃO TESTE
+// BOTÃO TESTE
 // ============================================================
 const CURR_EX = `Anderson da Silva
 analista de seguranca da informacao
@@ -569,22 +216,19 @@ localizacao: Sao Paulo, SP
 linkedin: linkedin.com/in/andersonsilva
 
 EXPERIENCIA PROFISSIONAL
-Empresa Tech Solutions
-Cargo: Analista de Seguranca da Informacao Jr
-Periodo: 2022 - Presente
-Descricao: Responsavel por monitoramento de SOC, analise de vulnerabilidades, gestao de incidentes de seguranca e conformidade com LGPD.
-Realizacoes: Reducao de incidentes de seguranca em 30%, implementacao de politica de senhas fortes
+Empresa Tech Solutions — Analista de Seguranca da Informacao Jr
+Set/2022 – Presente
+• Responsavel por monitoramento de SOC, analise de vulnerabilidades, gestao de incidentes de seguranca e conformidade com LGPD.
+• Reducao de incidentes de seguranca em 30%, implementacao de politica de senhas fortes.
 
-Empresa Web Dev Ltda
-Cargo: Estagiario de TI
-Periodo: 2020 - 2022
-Descricao: Suporte tecnico, instalacao de software, configuracao de redes e firewall.
-Realizacoes: Atendimento a mais de 100 chamados mensais
+Empresa Web Dev Ltda — Estagiario de TI
+Abr/2020 – Set/2022
+• Suporte tecnico, instalacao de software, configuracao de redes e firewall.
+• Atendimento a mais de 100 chamados mensais.
 
 EDUCACAO
-Bacharel em Sistemas de Informacao
-Faculdade de Tecnologia de Sao Paulo
-Periodo: 2018 - 2022
+Bacharel em Sistemas de Informacao — Faculdade de Tecnologia de Sao Paulo
+2018 – 2022
 
 HABILIDADES
 Seguranca da informacao, SIEM, SOC, Firewall, VPN, LGPD, Analise de vulnerabilidades, Git, HTML, CSS, Comunicacao, Trabalho em equipe`;
@@ -616,7 +260,7 @@ if (btnTeste) {
 }
 
 // ============================================================
-// 9. SUBMIT DO FORMULÁRIO (envia para backend com IA)
+// SUBMIT DO FORMULÁRIO (envia para backend com IA)
 // ============================================================
 if (form) {
   form.addEventListener('submit', async (e) => {
@@ -644,12 +288,74 @@ if (form) {
 
       if (!resp.ok) throw new Error(dados.erro || 'Erro na análise');
 
+      // Score principal
       const sEl = $('scoreValor'); if (sEl) sEl.textContent = dados.scoreMatch;
-      const lf = $('listaPontosFortes'); if (lf) lf.innerHTML = dados.analise.pontosFortes.map(p => `<li>${esc(p)}</li>`).join('');
-      const ll = $('listaLacunas'); if (ll) ll.innerHTML = dados.analise.lacunas.map(l => `<li>${esc(l)}</li>`).join('');
-      const lr = $('listaRecomendacoes'); if (lr) lr.innerHTML = dados.analise.recomendacoes.map(r => `<li>${esc(r)}</li>`).join('');
 
-      preview.innerHTML = dados.htmlCurriculo;
+      // Análise básica
+      const lf = $('listaPontosFortes'); if (lf) lf.innerHTML = (dados.analise.pontosFortes || []).map(p => `<li>${esc(p)}</li>`).join('');
+      const ll = $('listaLacunas'); if (ll) ll.innerHTML = (dados.analise.lacunas || []).map(l => `<li>${esc(l)}</li>`).join('');
+      const lr = $('listaRecomendacoes'); if (lr) lr.innerHTML = (dados.analise.recomendacoes || []).map(r => `<li>${esc(r)}</li>`).join('');
+
+      // Match detalhado
+      const md = $('matchDetalhado');
+      if (md && dados.analise.matchDetalhado) {
+        const d = dados.analise.matchDetalhado;
+        md.innerHTML = `
+          <div class="match-grid">
+            <div class="match-item"><div class="match-valor">${d.habilidadesTecnicas || 0}</div><div class="match-label">Habilidades Técnicas</div></div>
+            <div class="match-item"><div class="match-valor">${d.experiencia || 0}</div><div class="match-label">Experiência</div></div>
+            <div class="match-item"><div class="match-valor">${d.educacao || 0}</div><div class="match-label">Educação</div></div>
+            <div class="match-item"><div class="match-valor">${d.softSkills || 0}</div><div class="match-label">Soft Skills</div></div>
+            <div class="match-item"><div class="match-valor">${d.ats || 0}</div><div class="match-label">Compatibilidade ATS</div></div>
+          </div>
+        `;
+        md.style.display = 'block';
+      }
+
+      // Roadmap de gaps
+      const rg = $('roadmapGaps');
+      if (rg && dados.analise.roadmapGaps && dados.analise.roadmapGaps.length) {
+        rg.innerHTML = '<h3>🗺️ Roadmap para preencher gaps</h3><ul>' +
+          dados.analise.roadmapGaps.map(g => `
+            <li>
+              <strong>${esc(g.gap)}</strong> — ${esc(g.sugestao)}
+              ${g.link ? `<br><a href="${esc(g.link)}" target="_blank">🔗 Acessar recurso</a>` : ''}
+            </li>
+          `).join('') + '</ul>';
+        rg.style.display = 'block';
+      }
+
+      // Carta de apresentação
+      const cp = $('cartaApresentacao');
+      if (cp && dados.cartaApresentacao) {
+        cp.innerHTML = '<h3>📄 Carta de Apresentação Personalizada</h3><div class="carta-conteudo">' + esc(dados.cartaApresentacao).replace(/\n/g, '<br>') + '</div>';
+        cp.style.display = 'block';
+      }
+
+      // Entrevista
+      const ev = $('entrevistaSecao');
+      if (ev && dados.entrevista && dados.entrevista.perguntas && dados.entrevista.perguntas.length) {
+        ev.innerHTML = '<h3>🎤 Guia de Entrevista</h3>' +
+          dados.entrevista.perguntas.map(p => `
+            <div class="pergunta-item">
+              <div class="pergunta-titulo">❓ ${esc(p.pergunta)}</div>
+              <div class="pergunta-resposta"><strong>Resposta sugerida:</strong> ${esc(p.respostaSugerida)}</div>
+              ${p.dica ? `<div class="pergunta-dica">💡 ${esc(p.dica)}</div>` : ''}
+            </div>
+          `).join('');
+        ev.style.display = 'block';
+      }
+
+      // Checklist
+      const ck = $('checklistSecao');
+      if (ck && dados.checklistAplicacao && dados.checklistAplicacao.length) {
+        ck.innerHTML = '<h3>✅ Checklist antes de enviar</h3><ul>' +
+          dados.checklistAplicacao.map(i => `<li>${esc(i)}</li>`).join('') + '</ul>';
+        ck.style.display = 'block';
+      }
+
+      // Currículo personalizado
+      preview.innerHTML = dados.htmlCurriculo || '';
       resultado.classList.remove('hidden');
       resultado.style.display = 'block';
       resultado.scrollIntoView({ behavior: 'smooth' });
@@ -665,7 +371,7 @@ if (form) {
 }
 
 // ============================================================
-// 10. IMPRESSÃO / DOWNLOAD
+// IMPRESSÃO / DOWNLOAD
 // ============================================================
 window.imprimirCurriculo = function () {
   const c = preview.innerHTML;
@@ -687,24 +393,15 @@ window.baixarHTML = function () {
 };
 
 // ============================================================
-// 11. ERRO GLOBAL + INIT
+// INIT
 // ============================================================
-window.onerror = function (msg, url, linha) {
-  erro('Erro no JavaScript (linha ' + linha + '): ' + msg);
-  return true;
-};
-
-log('Página carregada. Elementos: form=' + !!form + ' btn=' + !!btnAnalisar + ' resultado=' + !!resultado + ' link=' + !!inputLinkVaga + ' textarea=' + !!inputTextoVaga + ' arquivo=' + !!inputArqCurric);
+log('Página carregada.');
 if ($('statusBar')) $('statusBar').style.display = 'flex';
 if ($('statusProvider')) {
-  const libsOk = typeof pdfjsLib !== 'undefined' && typeof mammoth !== 'undefined';
-  $('statusProvider').innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:6px"></span><strong>Frontend local</strong> <em>(leitura de vaga via link + análise por palavras-chave' + (libsOk ? ' + PDF/DOCX via internet' : '') + ')</em>';
+  $('statusProvider').innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:6px"></span><strong>IA Avançada</strong> <em>(match granular + carta + entrevista + roadmap)</em>';
 }
 
-// Tenta pré-carregar bibliotecas em background ao abrir a página
-carregarExternas().then(() => {
-  if ($('statusProvider')) {
-    const libsOk = typeof pdfjsLib !== 'undefined' && typeof mammoth !== 'undefined';
-    $('statusProvider').innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (libsOk ? '#10b981' : '#f59e0b') + ';margin-right:6px"></span><strong>Frontend local</strong> <em>(leitura de vaga via link + análise por palavras-chave' + (libsOk ? ' + PDF/DOCX prontos' : ' - PDF/DOCX sem internet') + ')</em>';
-  }
-});
+window.onerror = function (msg, url, linha) {
+  erro('Erro (linha ' + linha + '): ' + msg);
+  return true;
+};
