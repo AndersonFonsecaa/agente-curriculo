@@ -18,12 +18,13 @@ const upload = multer({ dest: 'uploads/', limits: { fileSize: 15 * 1024 * 1024 }
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
 // Configuração IA
-const IA_PROVIDER = process.env.IA_PROVIDER || 'google';
+const IA_PROVIDER = process.env.IA_PROVIDER || 'groq';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-let openai = null, anthropic = null, google = null;
+let openai = null, anthropic = null, google = null, groq = null;
 
 if (OPENAI_API_KEY) {
   const { OpenAI } = require('openai');
@@ -36,6 +37,13 @@ if (ANTHROPIC_API_KEY) {
 if (GOOGLE_API_KEY) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
   google = new GoogleGenerativeAI(GOOGLE_API_KEY);
+}
+if (GROQ_API_KEY) {
+  const { OpenAI } = require('openai');
+  groq = new OpenAI({
+    apiKey: GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1'
+  });
 }
 
 /** Extrai texto de arquivo */
@@ -143,6 +151,16 @@ INSTRUÇÕES IMPORTANTES:
     const model = google.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
     const r = await model.generateContent(prompt);
     return extrairJSON(r.response.text());
+  }
+
+  if (IA_PROVIDER === 'groq' && groq) {
+    const r = await groq.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 6000,
+    });
+    return extrairJSON(r.choices[0].message.content);
   }
 
   throw new Error('Nenhuma chave de IA configurada. Defina IA_PROVIDER e a respectiva API_KEY no .env');
