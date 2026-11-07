@@ -155,7 +155,7 @@ INSTRUÇÕES IMPORTANTES:
 
   if (IA_PROVIDER === 'groq' && groq) {
     const r = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      model: 'llama-3.1-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 6000,
