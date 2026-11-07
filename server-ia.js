@@ -140,7 +140,7 @@ INSTRUÇÕES IMPORTANTES:
   }
 
   if (IA_PROVIDER === 'google' && google) {
-    const model = google.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = google.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
     const r = await model.generateContent(prompt);
     return extrairJSON(r.response.text());
   }
