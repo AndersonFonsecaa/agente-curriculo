@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente de Currículo - Match com Vaga</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>🎯 Agente de Currículo</h1>
+    <p>Analise sua compatibilidade com a vaga e gere um currículo personalizado</p>
+  </header>
+
+  <div class="status-bar" id="statusBar">
+    <span id="statusProvider">Conectando...</span>
+  </div>
+
+  <form id="formAnalise" class="form-card">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Vaga de Emprego</label>
+        <div class="url-group">
+          <input type="url" id="linkVaga" placeholder="https://exemplo.com/vaga">
+          <button type="button" class="btn btn-outline btn-small" id="btnLerLink">🔗 Ler página da vaga</button>
+        </div>
+        <textarea id="textoVaga" placeholder="O texto da vaga aparecerá aqui (ou cole manualmente)..."></textarea>
+        <div class="file-hint">ou envie um arquivo (PDF, DOCX, TXT): <input type="file" id="arquivoVaga" accept=".pdf,.docx,.txt"></div>
+        <div class="url-hint" id="urlHint"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Seu Currículo (obrigatório)</label>
+        <div class="file-hint">Envie seu currículo em PDF, DOCX ou TXT: <input type="file" id="arquivoCurriculo" accept=".pdf,.docx,.txt"></div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="btnAnalisar">Analisar Match e Gerar Currículo</button>
+<button type="button" class="btn btn-outline" id="btnTeste" style="margin-left:10px;">🧪 Testar com exemplo</button>
+  </form>
+
+  <div id="resultado" class="resultado-card hidden">
+    <div class="resultado-header">
+      <h2>Resultado da Análise</h2>
+      <div class="score-display">
+        <span class="score-big" id="scoreValor">0</span>
+        <span class="score-texto">% de match com a vaga</span>
+      </div>
+    </div>
+
+    <div class="resultado-grid">
+      <div class="resultado-section">
+        <h3>✅ Pontos Fortes</h3>
+        <ul id="listaPontosFortes" class="lista-check"></ul>
+      </div>
+
+      <div class="resultado-section">
+        <h3>⚠️ Lacunas (Gaps)</h3>
+        <ul id="listaLacunas" class="lista-alerta"></ul>
+      </div>
+
+      <div class="resultado-section largura-total">
+        <h3>💡 Recomendações</h3>
+        <ul id="listaRecomendacoes" class="lista-info"></ul>
+      </div>
+    </div>
+
+    <div class="secao-curriculo">
+      <h3>📄 Currículo Personalizado</h3>
+      <p>Seu currículo foi reescrito e otimizado para esta vaga específica. Você pode visualizar e imprimir/salvar como PDF.</p>
+      <div class="preview-curriculo" id="previewCurriculo">
+        <!-- O currículo será injetado aqui -->
+      </div>
+      <div class="acoes-curriculo">
+        <button type="button" class="btn btn-secondary" onclick="imprimirCurriculo()">🖨️ Imprimir / Salvar como PDF</button>
+        <button type="button" class="btn btn-outline" onclick="baixarHTML()">⬇️ Baixar HTML</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mensagemErro" class="alerta erro hidden"></div>
+
+  <footer>
+    <p>Dica: Quanto mais detalhada for a vaga e o currículo, mais preciso será o match.</p>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

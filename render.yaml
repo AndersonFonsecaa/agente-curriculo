@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: agente-curriculo-ia
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: IA_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PORT
+        value: 3001
